@@ -1,6 +1,5 @@
 import 'server-only';
 
-import { genSaltSync, hashSync } from 'bcrypt-ts';
 import {
   and,
   asc,
@@ -16,16 +15,14 @@ import { drizzle } from 'drizzle-orm/postgres-js';
 import postgres from 'postgres';
 
 import {
-  user,
   chat,
-  type User,
+  type Chat,
   document,
   type Suggestion,
   suggestion,
   message,
   vote,
   type DBMessage,
-  type Chat,
 } from './schema';
 import type { ArtifactKind } from '@/components/artifact';
 
@@ -37,41 +34,17 @@ import type { ArtifactKind } from '@/components/artifact';
 const client = postgres(process.env.POSTGRES_URL!);
 const db = drizzle(client);
 
-export async function getUser(email: string): Promise<Array<User>> {
-  try {
-    return await db.select().from(user).where(eq(user.email, email));
-  } catch (error) {
-    console.error('Failed to get user from database');
-    throw error;
-  }
-}
-
-export async function createUser(email: string, password: string) {
-  const salt = genSaltSync(10);
-  const hash = hashSync(password, salt);
-
-  try {
-    return await db.insert(user).values({ email, password: hash });
-  } catch (error) {
-    console.error('Failed to create user in database');
-    throw error;
-  }
-}
-
 export async function saveChat({
   id,
-  userId,
   title,
 }: {
   id: string;
-  userId: string;
   title: string;
 }) {
   try {
     return await db.insert(chat).values({
       id,
       createdAt: new Date(),
-      userId,
       title,
     });
   } catch (error) {
@@ -92,13 +65,11 @@ export async function deleteChatById({ id }: { id: string }) {
   }
 }
 
-export async function getChatsByUserId({
-  id,
+export async function getChats({
   limit,
   startingAfter,
   endingBefore,
 }: {
-  id: string;
   limit: number;
   startingAfter: string | null;
   endingBefore: string | null;
@@ -110,11 +81,7 @@ export async function getChatsByUserId({
       db
         .select()
         .from(chat)
-        .where(
-          whereCondition
-            ? and(whereCondition, eq(chat.userId, id))
-            : eq(chat.userId, id),
-        )
+        .where(whereCondition)
         .orderBy(desc(chat.createdAt))
         .limit(extendedLimit);
 
@@ -156,6 +123,7 @@ export async function getChatsByUserId({
     };
   } catch (error) {
     console.error('Failed to get chats by user from database');
+    console.error(error);
     throw error;
   }
 }
@@ -242,13 +210,11 @@ export async function saveDocument({
   title,
   kind,
   content,
-  userId,
 }: {
   id: string;
   title: string;
   kind: ArtifactKind;
   content: string;
-  userId: string;
 }) {
   try {
     return await db
@@ -258,7 +224,6 @@ export async function saveDocument({
         title,
         kind,
         content,
-        userId,
         createdAt: new Date(),
       })
       .returning();

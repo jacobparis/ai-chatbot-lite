@@ -1,5 +1,4 @@
 import { z } from 'zod';
-import { Session } from 'next-auth';
 import { DataStreamWriter, streamObject, tool } from 'ai';
 import { getDocumentById, saveSuggestions } from '@/lib/db/queries';
 import { Suggestion } from '@/lib/db/schema';
@@ -7,12 +6,10 @@ import { generateUUID } from '@/lib/utils';
 import { myProvider } from '../providers';
 
 interface RequestSuggestionsProps {
-  session: Session;
   dataStream: DataStreamWriter;
 }
 
 export const requestSuggestions = ({
-  session,
   dataStream,
 }: RequestSuggestionsProps) =>
   tool({
@@ -66,18 +63,14 @@ export const requestSuggestions = ({
         suggestions.push(suggestion);
       }
 
-      if (session.user?.id) {
-        const userId = session.user.id;
 
         await saveSuggestions({
           suggestions: suggestions.map((suggestion) => ({
             ...suggestion,
-            userId,
             createdAt: new Date(),
             documentCreatedAt: document.createdAt,
           })),
         });
-      }
 
       return {
         id: documentId,
